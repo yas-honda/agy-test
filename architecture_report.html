@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aegis Vanguard — Architecture & Development Analysis</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=Inter:wght@300;400;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({
+            theme: 'dark',
+            startOnLoad: true,
+            fontSize: 15,
+            flowchart: { useMaxWidth: false, htmlLabels: true, curve: 'basis' },
+            stateDiagram: { useMaxWidth: false },
+            themeVariables: {
+                background: '#0a0a14',
+                mainBkg: '#12122a',
+                nodeBorder: '#00ffcc',
+                clusterBkg: '#0d0d1e',
+                titleColor: '#00ffcc',
+                edgeLabelBackground: '#0d0d1e',
+                primaryColor: '#00ffcc',
+                primaryTextColor: '#ffffff',
+                primaryBorderColor: '#00ffcc',
+                lineColor: '#ff007f',
+                secondaryColor: '#1b1b3a',
+                tertiaryColor: '#0a0a1e',
+                fontFamily: 'Inter, sans-serif',
+                fontSize: '15px'
+            }
+        });
+    </script>
+    <style>
+        :root {
+            --cyan:    #00ffcc;
+            --magenta: #ff007f;
+            --blue:    #4477ff;
+            --orange:  #ff8844;
+            --bg:      #04040d;
+            --card:    rgba(14, 14, 32, 0.85);
+            --glow-c:  rgba(0, 255, 200, 0.25);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            color: #e0e4f0;
+            font-family: 'Inter', sans-serif;
+            padding: 0;
+            background-image:
+                radial-gradient(ellipse 80% 50% at 90% 0%, rgba(255,0,127,.12) 0%, transparent 70%),
+                radial-gradient(ellipse 80% 50% at 0% 100%, rgba(0,127,255,.12) 0%, transparent 70%);
+            min-height: 100vh;
+        }
+
+        /* ── HERO HEADER ── */
+        header {
+            text-align: center;
+            padding: 60px 40px 40px;
+            position: relative;
+            border-bottom: 1px solid rgba(255,255,255,.06);
+        }
+        header::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 10%; right: 10%; height: 1px;
+            background: linear-gradient(90deg, transparent, var(--cyan), var(--magenta), transparent);
+        }
+        .hero-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: clamp(36px, 5vw, 64px);
+            font-weight: 900;
+            letter-spacing: 3px;
+            background: linear-gradient(135deg, var(--cyan) 0%, #88eeff 50%, var(--magenta) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 0 18px rgba(0,255,200,.35));
+            line-height: 1.1;
+        }
+        .hero-sub {
+            margin-top: 12px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px;
+            color: var(--magenta);
+            font-style: italic;
+            opacity: 0.9;
+        }
+        .hero-meta {
+            margin-top: 18px;
+            display: inline-flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .pill {
+            background: rgba(0,255,200,.08);
+            border: 1px solid rgba(0,255,200,.3);
+            color: var(--cyan);
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 14px;
+            border-radius: 100px;
+            letter-spacing: .5px;
+        }
+        .pill.pink { background: rgba(255,0,127,.08); border-color: rgba(255,0,127,.3); color: var(--magenta); }
+        .pill.blue  { background: rgba(68,119,255,.08); border-color: rgba(68,119,255,.3); color: var(--blue); }
+
+        /* ── SECTION LAYOUT ── */
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 50px 28px 80px;
+            display: flex;
+            flex-direction: column;
+            gap: 50px;
+        }
+
+        .section-label {
+            font-family: 'Outfit', sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--magenta);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 26px;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 10px;
+        }
+        .section-desc {
+            color: #8898bb;
+            font-size: 15px;
+            line-height: 1.7;
+            max-width: 800px;
+            margin-bottom: 28px;
+        }
+
+        /* ── CARDS ── */
+        .card {
+            background: var(--card);
+            border: 1px solid rgba(255,255,255,.07);
+            border-radius: 16px;
+            padding: 36px;
+            box-shadow: 0 8px 48px rgba(0,0,0,.45);
+            backdrop-filter: blur(16px);
+            transition: box-shadow .3s ease, border-color .3s ease;
+        }
+        .card:hover {
+            border-color: rgba(0,255,200,.2);
+            box-shadow: 0 12px 60px rgba(0,255,200,.12);
+        }
+
+        /* ── DIAGRAM BOX ── */
+        .diagram-box {
+            background: #06060f;
+            border: 1px solid rgba(255,255,255,.06);
+            border-radius: 10px;
+            padding: 30px 20px;
+            overflow-x: auto;
+            display: flex;
+            justify-content: center;
+        }
+        .diagram-box .mermaid {
+            min-width: 600px;
+        }
+        .diagram-box svg {
+            max-width: 100%;
+        }
+
+        /* ── TWO-COL ── */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 28px;
+        }
+        @media (max-width: 800px) { .grid-2 { grid-template-columns: 1fr; } }
+
+        /* ── STEP TIMELINE ── */
+        .steps {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            position: relative;
+            margin-top: 8px;
+        }
+        .step {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+            padding: 20px 0;
+            position: relative;
+        }
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            left: 19px;
+            top: 56px;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, var(--cyan), transparent);
+        }
+        .step-num {
+            flex-shrink: 0;
+            width: 38px; height: 38px;
+            border-radius: 50%;
+            border: 2px solid var(--cyan);
+            color: var(--cyan);
+            font-family: 'Outfit', sans-serif;
+            font-weight: 900;
+            font-size: 16px;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(0,255,200,.08);
+            box-shadow: 0 0 12px rgba(0,255,200,.2);
+        }
+        .step-body { flex: 1; }
+        .step-title {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 16px;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+        .step-detail {
+            font-size: 13px;
+            color: #6677aa;
+            line-height: 1.6;
+        }
+        .step-tag {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--orange);
+            background: rgba(255,136,68,.1);
+            border: 1px solid rgba(255,136,68,.3);
+            border-radius: 4px;
+            padding: 1px 7px;
+            margin-left: 8px;
+        }
+
+        /* ── PROMPT BLOCKS ── */
+        .prompt-group { display: flex; flex-direction: column; gap: 20px; }
+        .prompt-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--cyan);
+            letter-spacing: .5px;
+            margin-bottom: 6px;
+        }
+        pre {
+            background: #020208;
+            border: 1px solid rgba(0,255,200,.15);
+            border-left: 3px solid var(--cyan);
+            border-radius: 6px;
+            padding: 14px 18px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: #88ffee;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        /* ── SVG KEY ── */
+        .svg-wrap {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+        }
+
+        /* ── TECH TABLE ── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+        th {
+            background: rgba(0,255,200,.08);
+            color: var(--cyan);
+            font-weight: 700;
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid rgba(0,255,200,.2);
+        }
+        td {
+            padding: 11px 16px;
+            border-bottom: 1px solid rgba(255,255,255,.05);
+            color: #9aaabb;
+            vertical-align: top;
+        }
+        td:first-child { color: #fff; font-weight: 600; }
+        tr:hover td { background: rgba(255,255,255,.02); }
+
+        /* ── FOOTER ── */
+        footer {
+            text-align: center;
+            padding: 30px;
+            font-size: 12px;
+            color: #334;
+            border-top: 1px solid rgba(255,255,255,.04);
+        }
+    </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════ HEADER -->
+<header>
+    <div class="hero-title">AEGIS VANGUARD</div>
+    <div class="hero-sub">Architecture & Development Analysis // Ion Void Core Protocol</div>
+    <div class="hero-meta">
+        <span class="pill">HTML5 Canvas</span>
+        <span class="pill pink">Web Audio API</span>
+        <span class="pill blue">Playwright QA</span>
+        <span class="pill">imgen4 Assets</span>
+        <span class="pill pink">Chroma Key</span>
+        <span class="pill blue">Node.js Server</span>
+    </div>
+</header>
+
+<main>
+
+<!-- ════════════════════════════════════════════════════════════ 1. SYSTEM ARCH -->
+<section class="card">
+    <div class="section-label">Section 01</div>
+    <h2>システム全体アーキテクチャ</h2>
+    <p class="section-desc">
+        プレイヤー入力・アセット・音声・描画・テストがどのように連携して動作するかを示すシステム全体フロー図。
+        ChromaKey フィルターを通じて透過済みキャンバスキャッシュが生成され、ゲームエンジン本体に供給される。
+    </p>
+    <div class="diagram-box">
+        <div class="mermaid">
+graph TD
+    subgraph INPUT["🎮 Input Layer"]
+        KB["Keyboard WASD / Arrows"]
+        VPAD["📱 Virtual Pad (Touch)"]
+    end
+
+    subgraph ASSETS["🖼️ Asset Pipeline"]
+        PNG["assets/*.png (Green BG)"]
+        CK["ChromaKey Filter\n1px Inner Clip"]
+        CACHE["Transparent Canvas Cache"]
+        PNG --> CK --> CACHE
+    end
+
+    subgraph ENGINE["⚙️ Game Engine  (game.js)"]
+        GC["GameController\nState Machine"]
+        PHYS["Physics / Collision"]
+        PART["Particle Engine"]
+        RANK["Rank System\n(Difficulty AI)"]
+        WARN["Death Record\nWarning System"]
+    end
+
+    subgraph AUDIO["🎵 Audio Engine  (audio.js)"]
+        SEQ["BGM Sequencer\n16-step / BPM"]
+        SFX["SFX Synthesizer"]
+        AC["Web Audio API\nAudioContext"]
+        SEQ --> AC
+        SFX --> AC
+    end
+
+    subgraph RENDER["🖥️ Render Layer"]
+        CANVAS["HTML5 Canvas\n960×540px"]
+        HUD["HUD Overlay\nScore / Lives / Power Bar"]
+        BG["Parallax Background\n3 Layers"]
+    end
+
+    subgraph SERVER["🌐 Delivery"]
+        SRV["server.js\nNode HTTP Static"]
+        QR["Terminal QR Code\nLocal IP Display"]
+        SRV --> QR
+    end
+
+    subgraph QA["🧪 QA Automation"]
+        PW["Playwright Tests\n10 test cases"]
+        PROBE["Hitbox Probe\nBoss HP Verify"]
+        SS["Screenshot Gallery\n9 PNG Captures"]
+        PW --> PROBE
+        PW --> SS
+    end
+
+    KB --> GC
+    VPAD --> GC
+    CACHE --> ENGINE
+    GC --> PHYS
+    GC --> PART
+    GC --> RANK
+    GC --> WARN
+    ENGINE --> RENDER
+    ENGINE -- "triggerSFX / playBGM" --> AUDIO
+    SRV -- "serves index.html" --> RENDER
+    QA -- "game state warp" --> ENGINE
+        </div>
+    </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════ 2. GAME STATE -->
+<section class="card">
+    <div class="section-label">Section 02</div>
+    <h2>ゲームステートマシン (State Machine)</h2>
+    <p class="section-desc">
+        TITLE → INSTRUCTIONS → PLAYING → BOSS_WARNING → BOSS_BATTLE → STAGE_CLEAR → ALL_CLEAR の 7 状態遷移。
+        残機ゼロで GAMEOVER ループ、無限コンティニュー対応。
+    </p>
+    <div class="diagram-box">
+        <div class="mermaid">
+stateDiagram-v2
+    [*] --> TITLE : ページ読み込み
+
+    TITLE --> INSTRUCTIONS : ENTER / SPACE
+
+    INSTRUCTIONS --> PLAYING : ENTER / SPACE\ninitGame()
+
+    PLAYING --> PLAYING : scrollX++\nspawnEnemies()\nupdateRank()
+
+    PLAYING --> BOSS_WARNING : stageTimer >= 7200\n(2分経過)
+
+    BOSS_WARNING --> BOSS_BATTLE : 3秒後\nboss = new Boss(stage)
+
+    BOSS_BATTLE --> STAGE_CLEAR : boss.dead == true
+
+    STAGE_CLEAR --> PLAYING : stage 2 or 3\nnext stage load
+
+    STAGE_CLEAR --> ALL_CLEAR : stage > 3
+
+    PLAYING --> GAMEOVER : lives < 0
+    BOSS_BATTLE --> GAMEOVER : lives < 0
+
+    GAMEOVER --> PLAYING : R / ENTER\ninitGame()
+
+    ALL_CLEAR --> TITLE : ENTER
+        </div>
+    </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════ 3. POWERUP + CHROMA -->
+<div class="grid-2">
+
+    <!-- Powerup -->
+    <section class="card">
+        <div class="section-label">Section 03</div>
+        <h2>Gradius カプセル選択方式</h2>
+        <p class="section-desc">
+            カプセル取得でハイライトが右に進み、Shift/Enter で現在選択中のアップグレードを発動しカウントリセット。
+        </p>
+        <div class="diagram-box">
+            <div class="mermaid">
+graph LR
+    A((🔴 Capsule\nGet)) --> B{capsuleCount\n% 8}
+    B -->|1| P1["⚡ SPEED"]
+    B -->|2| P2["🚀 MISSILE"]
+    B -->|3| P3["↑ DOUBLE"]
+    B -->|4| P4["↗ SPREAD"]
+    B -->|5| P5["━ LASER"]
+    B -->|6| P6["● OPTION"]
+    B -->|7| P7["🛡 SHIELD"]
+    P1 & P2 & P3 & P4 & P5 & P6 & P7 --> ACT["Shift / Enter\n→ Activate!\ncapsuleCount = 0"]
+            </div>
+        </div>
+    </section>
+
+    <!-- Chroma Key -->
+    <section class="card">
+        <div class="section-label">Section 04</div>
+        <h2>Chroma Key 処理フロー</h2>
+        <p class="section-desc">
+            緑背景 (#00FF00) を透過し、1px 内側クリップで輪郭の緑残りを除去する。CORS エラー時はベクター代替描画へ自動フォールバック。
+        </p>
+        <div class="diagram-box">
+            <div class="mermaid">
+graph TD
+    IMG["assets/*.png\ngreen background"] --> DET["① 緑ピクセル検出\ng > r×1.3 AND g > b×1.3"]
+    DET --> MAP["② isBg[] マップ作成"]
+    MAP --> CLIP["③ 1px 内側クリップ\n隣接緑ピクセルを特定"]
+    CLIP --> ZERO["④ アルファ値を 0 に設定\n(透過)"]
+    ZERO --> CACHE["✅ 透過キャンバス\nキャッシュ保存"]
+    CACHE --> DRAW["drawImage() → Canvas"]
+
+    IMG -->|"読み込み失敗\nor CORS"| FB["⚠️ Fallback\n手続き型ベクター描画"]
+            </div>
+        </div>
+    </section>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════ 4. BOSS HITBOX -->
+<section class="card">
+    <div class="section-label">Section 05</div>
+    <h2>ボス当たり判定設計 (Hitbox Architecture)</h2>
+    <p class="section-desc">
+        各ボスはコア (弱点) と外殻装甲 (シェル) の二層構造。弾丸はコアに命中した場合のみ HPを削り、装甲に当たった場合はヒットフラッシュのみ発生。
+    </p>
+    <div class="diagram-box">
+        <div class="mermaid">
+graph LR
+    B["Player Bullet 💥"] --> CHK{命中判定}
+    CHK -->|"Boss 1 のみ\n軌道シールドに接触"| SH["🛡 Orbit Shield\nhp -= damage\nシールド破壊チェック"]
+    CHK -->|"blockedByShield = false"| CORE{"Core Box\n衝突?"}
+    CORE -->|YES| VUL{"isCoreVulnerable()\n?"}
+    VUL -->|TRUE| DMG["boss.hp -= damage\n⚡ Hit Flash RED\n画面シェイク"]
+    VUL -->|"FALSE\n(Boss3 パネル閉)\"| SHELL_FLASH["⚪ Hit Flash WHITE\n装甲跳弾"]
+    CORE -->|NO| SHELL{"Shell Parts\n衝突?"}
+    SHELL -->|YES| SHELL_FLASH
+    SHELL -->|NO| MISS["💨 Miss"]
+    DMG -->|"boss.hp <= 0"| DEAD["🎆 Boss Defeated\nboss.dead = true"]
+        </div>
+    </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════ 5. AUDIO SYNTH -->
+<section class="card">
+    <div class="section-label">Section 06</div>
+    <h2>Web Audio API シンセサイザー構成</h2>
+    <p class="section-desc">
+        外部音声ファイルを一切使用せず、OscillatorNode・BiquadFilterNode・BufferSourceNode を組み合わせてリアルタイム合成。
+        16 ステップシーケンサーでBGMを生成し、各ゲーム状態に対応した BPM とスケールを切り替える。
+    </p>
+    <div class="diagram-box">
+        <div class="mermaid">
+graph TD
+    subgraph BGM["🎵 BGM Sequencer (16-step)"]
+        SCH["scheduler()\n25ms ポーリング"] --> NOTE["schedulePlay(step, time)"]
+        NOTE --> BASS["playBassNote()\nOscillator Triangle"]
+        NOTE --> MEL["playMelodyNote()\nOscillator Square\n+ Vibrato LFO"]
+        NOTE --> DRUM["playSynthKick()\nplaySynthSnare()\nNoise Buffer"]
+    end
+
+    subgraph SFX_TREE["🔊 SFX Synthesis"]
+        LASER["synthLaser()\nSawtooth sweep"]
+        EXP["synthExplosion()\nFiltered Noise\nLP sweep"]
+        CAPS["synthCapsuleGet()\n4-note arp\nSquare wave"]
+        WARN["synthWarning()\nSquare pulse"]
+        SHIELD["synthShieldHit()\nDual sine beat"]
+    end
+
+    subgraph DST["📤 Output"]
+        MASTER["masterVolume GainNode\n(UI slider 接続)"]
+        CTX["AudioContext.destination"]
+        MASTER --> CTX
+    end
+
+    BGM --> MASTER
+    SFX_TREE --> MASTER
+
+    NOISE_BUF["🎲 createNoiseBuffer()\n2秒 White Noise\n事前生成"] -.-> DRUM
+    NOISE_BUF -.-> EXP
+        </div>
+    </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════ 6. PROMPTS -->
+<section class="card">
+    <div class="section-label">Section 07</div>
+    <h2>imgen4 プロンプトエンジニアリング戦略</h2>
+    <p class="section-desc">
+        Chroma Key 処理前提で、純粋な緑背景 (#00FF00) を生成するためのプロンプト設計。
+        「no human」を必ず付与し、人物・キャラクターの混入を防ぐ。
+    </p>
+    <div class="prompt-group">
+        <div>
+            <div class="prompt-label">🛸 自機 / 敵機 / ドローン スプライト</div>
+            <pre>[機体説明], side view facing right, hard-surface mechanical sci-fi,
+detailed greeble, glowing engines, solid green background (#00ff00), no human</pre>
+        </div>
+        <div>
+            <div class="prompt-label">🔴 ボスコア スプライト (ステージ 1)</div>
+            <pre>giant mechanical sentinel core spacecraft, boss enemy ship,
+detailed greeble, glowing red circular core at front, facing left,
+hard-surface mechanical sci-fi, solid green background (#00ff00), no human</pre>
+        </div>
+        <div>
+            <div class="prompt-label">💜 ボス 3 フラッグシップ (ステージ 3)</div>
+            <pre>the Ion Void massive flagship fortress boss, ultimate alien warship,
+detailed greeble, glowing purple plasma core and heavy cannons,
+facing left, solid green background (#00ff00), no human</pre>
+        </div>
+    </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════ 7. DEV LOOP -->
+<section class="card">
+    <div class="section-label">Section 08</div>
+    <h2>開発イテレーション & 品質保証ループ</h2>
+    <p class="section-desc">
+        コード生成 → サーバー起動 → Playwright 自動テスト → エラー分析 → 修正のサイクルを繰り返し、
+        10/10 テスト通過 & コンソールエラー 0 を達成した。
+    </p>
+    <div class="diagram-box">
+        <div class="mermaid">
+graph LR
+    A["✍️ コード実装\ngame.js / audio.js"] --> B["🚀 server.js 起動\nPython / Node HTTP"]
+    B --> C["🧪 Playwright Tests\nnpm test"]
+    C --> D{テスト結果}
+    D -->|"❌ 失敗\n(Hitbox / Console Error)"| E["🔍 原因分析\nログ & スタックトレース"]
+    E --> F["🔧 コード修正\ncheckCollisions refactor\nBullet absorption fix"]
+    F --> A
+    D -->|"✅ 全 10 件 PASS\nエラー 0"| G["📸 スクリーンショット\n自動保存 (9枚)"]
+    G --> H["🎬 WebM 動画録画\nPlaywright Video"]
+    H --> I["📦 成果物一式\n納品完了"]
+        </div>
+    </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════ 8. FILE TABLE -->
+<section class="card">
+    <div class="section-label">Section 09</div>
+    <h2>ファイル構成 & 技術スタック</h2>
+    <p class="section-desc">依存するランタイムライブラリは一切なく、ブラウザのみで完結する自己完結型パッケージ。</p>
+    <table>
+        <thead>
+            <tr>
+                <th>ファイル</th>
+                <th>役割</th>
+                <th>技術</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td>index.html</td><td>ゲーム本体エントリポイント、HUDサイドバー、キャンバスフレーム</td><td>HTML5 / CSS3 / Google Fonts</td></tr>
+            <tr><td>game.js</td><td>ゲームループ、物理エンジン、当たり判定、ランクシステム、死亡記録</td><td>Vanilla JS / Canvas 2D API</td></tr>
+            <tr><td>audio.js</td><td>チップチューンBGMシーケンサー、SFX合成エンジン</td><td>Web Audio API</td></tr>
+            <tr><td>style.css</td><td>サイバーパンクUI、グロー効果、モバイル仮想パッド</td><td>Vanilla CSS / Glassmorphism</td></tr>
+            <tr><td>server.js</td><td>静的ファイルサーバー、ローカルIP検出、QRコード出力</td><td>Node.js http / qrcode-terminal</td></tr>
+            <tr><td>start.command</td><td>ワンクリック起動スクリプト (macOS/Linux/Windows)</td><td>Bash Shell Script</td></tr>
+            <tr><td>playwright.config.js</td><td>自動テスト設定、WebM動画録画</td><td>Playwright / Chromium</td></tr>
+            <tr><td>tests/visual.test.js</td><td>10項目自動テスト、ヒットボックスプローブ、スクリーンショット取得</td><td>Playwright Test</td></tr>
+            <tr><td>assets/*.png</td><td>imgen4 生成スプライト (ChromaKey 緑背景)</td><td>imgen4 / Canvas API</td></tr>
+        </tbody>
+    </table>
+</section>
+
+</main>
+
+<footer>
+    Aegis Vanguard: Chronicles of the Ion Void &nbsp;|&nbsp; Built with agyCLI (Antigravity CLI) &nbsp;|&nbsp; Google DeepMind Advanced Agentic Coding
+</footer>
+
+</body>
+</html>
