@@ -1,0 +1,16 @@
+{
+  "name": "aegis-vanguard",
+  "version": "1.0.0",
+  "description": "Chronicles of the Ion Void - Horizontal Scrolling Shooter",
+  "main": "index.html",
+  "scripts": {
+    "start": "node server.js",
+    "test": "npx playwright test"
+  },
+  "dependencies": {
+    "qrcode-terminal": "^0.12.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}

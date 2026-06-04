@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aegis Vanguard: Chronicles of the Ion Void</title>
+    
+    <!-- Premium Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=Inter:wght@300;400;700&display=swap" rel="stylesheet">
+    
+    <!-- Styling stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="game-container">
+        
+        <!-- HUD Sidebar Panel (Information & Control Dashboard) -->
+        <div id="hud-sidebar">
+            <div class="hud-title">AEGIS INTERFACE</div>
+            
+            <div class="hud-item">
+                <span>Vessel Type:</span>
+                <span class="hud-value" style="color: var(--cyber-cyan);">VG-329 Vanguard</span>
+            </div>
+            
+            <div class="hud-item">
+                <span>Sector:</span>
+                <span class="hud-value" id="hud-sector-val">ION VOID</span>
+            </div>
+            
+            <div class="hud-item">
+                <span>Status:</span>
+                <span class="hud-value" style="color: #00ff66;">SYSTEMS NOMINAL</span>
+            </div>
+            
+            <!-- Audio Settings -->
+            <div class="hud-controls-hint">
+                <span>AUDIO CHIPSENSE</span>
+                <div class="volume-control">
+                    <span>🔊</span>
+                    <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="0.4">
+                </div>
+            </div>
+            
+            <!-- Technical Specs details -->
+            <div class="hud-controls-hint" style="font-size: 10px;">
+                <strong>TACTICAL READOUT</strong><br>
+                • SPEED: Increases agility<br>
+                • MISSILE: Slides along rails<br>
+                • OPTION: Max 4 mirror drones<br>
+                • SHIELD: Absorbs 3 impacts
+            </div>
+            
+            <div class="hud-controls-hint" style="font-size: 9px; color: #555577; text-align: center;">
+                v1.0.0 Stable // agyCLI Verified
+            </div>
+        </div>
+        
+        <!-- Canvas Frame Frame -->
+        <div id="canvas-frame">
+            <canvas id="gameCanvas" width="960" height="540"></canvas>
+        </div>
+        
+        <!-- Mobile Touch Virtual Controls Layout -->
+        <div id="mobile-controls">
+            <!-- Left side virtual pad draggable area -->
+            <div id="vpad-area"></div>
+            
+            <!-- Right side FIRE & POWER select buttons -->
+            <div class="action-buttons">
+                <div class="touch-btn" id="btn-power">POWER</div>
+                <div class="touch-btn" id="btn-fire">FIRE</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Scripts setup -->
+    <script src="audio.js"></script>
+    <script src="game.js"></script>
+    
+    <!-- Audio context connection mapping script -->
+    <script>
+        const volSlider = document.getElementById('volume-slider');
+        
+        // Connect UI Slider to Synthesizer Master Volume
+        volSlider.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            if (window.SynthAudio) {
+                window.SynthAudio.setVolume(val);
+            }
+        });
+        
+        // Handle active UI clicks to unlock Web Audio API contexts
+        document.body.addEventListener('click', () => {
+            if (window.SynthAudio && window.SynthAudio.ctx) {
+                if (window.SynthAudio.ctx.state === 'suspended') {
+                    window.SynthAudio.ctx.resume();
+                }
+            }
+        });
+        
+        // Sync HUD updates
+        setInterval(() => {
+            if (window.gameController) {
+                const sectorVal = document.getElementById('hud-sector-val');
+                if (sectorVal) {
+                    if (window.gameController.state === 'PLAYING' || window.gameController.state === 'BOSS_BATTLE') {
+                        sectorVal.innerText = `VOID SECTOR ${window.gameController.stage}`;
+                    } else if (window.gameController.state === 'TITLE') {
+                        sectorVal.innerText = `MAIN COCKPIT`;
+                    } else if (window.gameController.state === 'GAMEOVER') {
+                        sectorVal.innerText = `SCRAP FLIGHT`;
+                    }
+                }
+            }
+        }, 500);
+    </script>
+</body>
+</html>
